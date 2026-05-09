@@ -1,17 +1,18 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.services)
+    alias(libs.plugins.gpAndroid)
+    alias(libs.plugins.gpKotlin)
+    alias(libs.plugins.gpCompose)
+    alias(libs.plugins.gpGoogle)
 }
 
 android {
     namespace = "com.abdallah.powertrack"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.abdallah.powertrack"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -28,9 +29,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+    /* kotlinOptions {
+        jvmTarget = "17"
+    } */
     buildFeatures {
         compose = true
     }
@@ -56,13 +60,15 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.analytics)
     implementation(libs.firebase.database)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
     implementation(libs.firebase.storage)
-    implementation("com.google.android.gms:play-services-auth:21.5.1")
+    
+    implementation(libs.play.services.auth)
     implementation(libs.googleid)
-    implementation("com.google.firebase:firebase-analytics")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -70,4 +76,10 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

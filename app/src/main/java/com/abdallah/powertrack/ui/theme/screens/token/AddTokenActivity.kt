@@ -1,21 +1,27 @@
 package com.abdallah.powertrack.ui.theme.screens.token
 
+import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Lock
-import android.content.Context
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
@@ -47,7 +53,7 @@ fun AddTokenScreen(onDone: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Add Token Manually") },
+                title = { Text("Manual Entry", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -60,28 +66,43 @@ fun AddTokenScreen(onDone: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .background(Color(0xFFF8FAFC))
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Default.FlashOn,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.FlashOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Text(
-                "Top Up Your Units",
-                fontSize = 20.sp,
+                "Sync Your Meter",
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+            
             Text(
-                "Enter the amount of units you just purchased from a vendor.",
+                "If you bought a token from a physical vendor, enter the units here to keep your dashboard accurate.",
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 32.dp)
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 12.dp)
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
                 value = input,
@@ -89,13 +110,19 @@ fun AddTokenScreen(onDone: () -> Unit) {
                     input = it
                     errorMessage = null
                 },
-                label = { Text("Units Amount") },
+                label = { Text("Units to Add (kWh)") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 isError = errorMessage != null,
                 supportingText = { errorMessage?.let { Text(it) } },
                 enabled = !isSaving,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -103,33 +130,47 @@ fun AddTokenScreen(onDone: () -> Unit) {
             OutlinedTextField(
                 value = pin,
                 onValueChange = { if (it.length <= 4) pin = it },
-                label = { Text("Transaction PIN") },
+                label = { Text("Confirm Transaction PIN") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !isSaving,
-                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) }
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Gray) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             if (input.isNotEmpty()) {
                 val units = input.toFloatOrNull() ?: 0f
                 if (units > 0) {
                     Card(
-                        modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                        modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Summary", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
-                            Text("Adding: $units units", fontSize = 16.sp)
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text("Transaction Summary", fontWeight = FontWeight.Bold, color = Color(0xFF1E40AF), fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("New Units:", color = Color.Gray)
+                                Text("+ $units kWh", fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                            }
                             val current = prefs.getFloat("remaining_units", 0f)
-                            Text("New Balance: ${current + units} units", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Estimated New Balance:", color = Color.Gray)
+                                Text("${String.format("%.1f", current + units)} kWh", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
@@ -140,14 +181,15 @@ fun AddTokenScreen(onDone: () -> Unit) {
                     }
                     showConfirmDialog = true
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = !isSaving && input.isNotBlank() && pin.length == 4
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
-                    Text("SAVE TOKEN", fontWeight = FontWeight.Bold)
+                    Text("ADD TO BALANCE", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
                 }
             }
         }
@@ -156,10 +198,10 @@ fun AddTokenScreen(onDone: () -> Unit) {
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirm Addition") },
-            text = { Text("You are adding $input units to your balance. This action cannot be undone. Continue?") },
+            title = { Text("Confirm Update") },
+            text = { Text("Are you sure you want to add $input kWh to your current meter balance?") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showConfirmDialog = false
                         val unitsAdded = input.toFloatOrNull() ?: 0f
@@ -186,7 +228,7 @@ fun AddTokenScreen(onDone: () -> Unit) {
                                 }
                                 .addOnFailureListener {
                                     isSaving = false
-                                    errorMessage = "Failed to sync with cloud"
+                                    errorMessage = "Cloud sync failed. Check connection."
                                 }
                         } else {
                             val currentUnits = prefs.getFloat("remaining_units", 0f)
@@ -197,7 +239,7 @@ fun AddTokenScreen(onDone: () -> Unit) {
                             onDone()
                         }
                     }
-                ) { Text("CONFIRM") }
+                ) { Text("SYNC NOW") }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) { Text("CANCEL") }

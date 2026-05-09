@@ -1,8 +1,10 @@
 package com.abdallah.powertrack.ui.theme.screens.setup
 
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,40 +44,58 @@ fun SetupScreen(onComplete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
+            .background(Color(0xFFF8FAFC))
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            Icons.Default.Bolt,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Bolt,
+                contentDescription = null,
+                modifier = Modifier.size(56.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            "Final Setup",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface
         )
         
         Text(
-            "Welcome to PowerTrack",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Text(
-            "Let's get you set up to track your electricity efficiently.",
+            "Just a few details to customize your energy tracking experience.",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.Gray,
+            fontSize = 16.sp,
             modifier = Modifier.padding(vertical = 16.dp)
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
             value = units,
             onValueChange = { units = it },
-            label = { Text("Current Units on Meter") },
+            label = { Text("Current Meter Balance (kWh)") },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             enabled = !isSaving,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -81,11 +103,16 @@ fun SetupScreen(onComplete: () -> Unit) {
         OutlinedTextField(
             value = dailyUsage,
             onValueChange = { dailyUsage = it },
-            label = { Text("Est. Daily Usage (e.g., 2.5)") },
+            label = { Text("Estimated Daily Usage") },
+            placeholder = { Text("e.g. 2.5") },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             enabled = !isSaving,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -95,21 +122,26 @@ fun SetupScreen(onComplete: () -> Unit) {
             onValueChange = { if (it.length <= 4) transactionPin = it },
             label = { Text("Set 4-digit Transaction PIN") },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             enabled = !isSaving,
             visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
         )
 
         if (errorMessage != null) {
             Text(
                 text = errorMessage!!,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = 16.dp),
+                fontSize = 14.sp
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
         Button(
             onClick = {
@@ -141,7 +173,6 @@ fun SetupScreen(onComplete: () -> Unit) {
                         .addOnFailureListener {
                             isSaving = false
                             errorMessage = "Connection error. Saving locally..."
-                            // Fallback to local
                             prefs.edit {
                                 putFloat("remaining_units", u)
                                 putFloat("daily_usage", d)
@@ -160,14 +191,16 @@ fun SetupScreen(onComplete: () -> Unit) {
                     onComplete()
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp),
+            shape = RoundedCornerShape(16.dp),
             enabled = !isSaving && units.isNotBlank() && dailyUsage.isNotBlank() && transactionPin.length == 4
         ) {
             if (isSaving) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
             } else {
-                Text("GET STARTED", fontWeight = FontWeight.Bold)
+                Text("FINISH SETUP", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
         }
     }

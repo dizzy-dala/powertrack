@@ -92,7 +92,7 @@ fun AppNavHost(
                 AddTokenScreen { navController.popBackStack() }
             }
             composable(ROUTE_HISTORY) {
-                HistoryScreen()
+                HistoryScreen { navController.popBackStack() }
             }
             composable(ROUTE_USAGE) {
                 UsageScreen { navController.popBackStack() }

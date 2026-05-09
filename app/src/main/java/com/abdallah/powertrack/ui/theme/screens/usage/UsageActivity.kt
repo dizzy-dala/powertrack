@@ -1,7 +1,13 @@
 package com.abdallah.powertrack.ui.theme.screens.usage
 
+import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Speed
@@ -9,11 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Context
 import androidx.core.content.edit
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -34,7 +43,7 @@ fun UsageScreen(onDone: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Update Usage") },
+                title = { Text("Update Usage", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -47,27 +56,43 @@ fun UsageScreen(onDone: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(Color(0xFFF8FAFC))
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Default.Speed,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Speed,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Text(
-                "Manual Sync",
-                fontSize = 20.sp,
+                "Manual Calibration",
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+            
             Text(
-                "Enter the current remaining units from your meter to calibrate the daily usage estimation.",
+                "Enter the current remaining units from your meter to calibrate the daily usage estimation and improve tracking accuracy.",
+                textAlign = TextAlign.Center,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 32.dp)
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 12.dp)
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
                 value = input,
@@ -75,12 +100,19 @@ fun UsageScreen(onDone: () -> Unit) {
                     input = it
                     errorMessage = null
                 },
-                label = { Text("Remaining Units") },
+                label = { Text("Remaining Units (kWh)") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 isError = errorMessage != null,
                 supportingText = { errorMessage?.let { Text(it) } },
-                enabled = !isSaving
+                enabled = !isSaving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -139,15 +171,41 @@ fun UsageScreen(onDone: () -> Unit) {
                         errorMessage = "Please enter a valid number"
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                 enabled = !isSaving && input.isNotBlank()
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onSecondary)
                 } else {
-                    Text("UPDATE READING", fontWeight = FontWeight.Bold)
+                    Text("UPDATE READING", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Speed,
+                        contentDescription = null,
+                        tint = Color(0xFFC2410C),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Updating this will recalculate your daily usage estimate based on the time since your last update.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF9A3412)
+                    )
                 }
             }
         }
