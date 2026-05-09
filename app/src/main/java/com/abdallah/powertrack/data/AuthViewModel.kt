@@ -34,23 +34,19 @@ class AuthViewModel : ViewModel() {
                     val userId = auth.currentUser?.uid ?: ""
                     val userData = User(name, email, userId)
                     
-                    // Attempt to save user data, but don't hang if it's slow
+                    // Save to local preferences immediately for speed
+                    val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
+                    prefs.edit {
+                        putString("user_name", name)
+                        putString("user_email", email)
+                        putBoolean("is_registered", true)
+                    }
+
+                    // Fire and forget Firestore update - don't wait for network
                     db.collection("users").document(userId).set(userData)
-                        .addOnSuccessListener {
-                            _isLoading.value = false
-                            val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
-                            prefs.edit {
-                                putString("user_name", name)
-                                putString("user_email", email)
-                                putBoolean("is_registered", true)
-                            }
-                            onSignupSuccess()
-                        }
-                        .addOnFailureListener {
-                            _isLoading.value = false
-                            // Proceed anyway, they can set up profile in the next screen
-                            onSignupSuccess()
-                        }
+                    
+                    _isLoading.value = false
+                    onSignupSuccess()
                 } else {
                     _isLoading.value = false
                     _errorMessage.value = task.exception?.message ?: "Signup failed"
