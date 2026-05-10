@@ -16,12 +16,18 @@ from .models import Transaction
 
 # Helper function to get Access Token
 def get_access_token():
-    res = requests.get(
-        MpesaC2bCredential.api_URL,
-        auth=HTTPBasicAuth(MpesaC2bCredential.consumer_key, MpesaC2bCredential.consumer_secret)
-    )
-    mpesa_access_token = json.loads(res.text)
-    return mpesa_access_token["access_token"]
+    try:
+        res = requests.get(
+            MpesaC2bCredential.api_URL,
+            auth=HTTPBasicAuth(MpesaC2bCredential.consumer_key, MpesaC2bCredential.consumer_secret),
+            timeout=10
+        )
+        res.raise_for_status()
+        mpesa_access_token = res.json()
+        return mpesa_access_token.get("access_token")
+    except Exception as e:
+        print(f"Error fetching access token: {e}")
+        return None
 
 @api_view(['POST'])
 def buy_token(request):
@@ -29,10 +35,16 @@ def buy_token(request):
     if serializer.is_valid():
         meter_number = serializer.validated_data['meter_number']
         phone_number = serializer.validated_data['phone_number']
-        amount = int(serializer.validated_data['amount']) # Safaricom expects integer for some reason or string
+        amount = int(serializer.validated_data['amount'])
 
         # Mpesa STK Push Logic
         access_token = get_access_token()
+        if not access_token:
+            return Response({
+                "status": "error",
+                "message": "Could not generate M-Pesa access token. Check your credentials or internet connection."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
         headers = {"Authorization": "Bearer %s" % access_token}
 
