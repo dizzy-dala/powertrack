@@ -1,15 +1,32 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Android Studio / Gradle
+.gradle/
+/build/
 local.properties
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Django Backend
+powertrack_backend/db.sqlite3
+powertrack_backend/.env
+powertrack_backend/__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Python Virtual Environment
+venv/
+powertrack_backend/Abdallah/
+powertrack_backend/venv/
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
