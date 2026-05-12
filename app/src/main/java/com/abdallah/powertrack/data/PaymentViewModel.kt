@@ -137,8 +137,13 @@ class PaymentViewModel : ViewModel() {
 
         db.collection("tokens")
             .add(transaction)
-            .addOnFailureListener {
-                // Ideally log this
+            .addOnSuccessListener {
+                // Also update the user's remaining units in their profile
+                db.collection("users").document(userId).get().addOnSuccessListener { snapshot ->
+                    val currentUnits = snapshot.getDouble("remainingUnits") ?: 0.0
+                    db.collection("users").document(userId)
+                        .update("remainingUnits", currentUnits + units)
+                }
             }
     }
 

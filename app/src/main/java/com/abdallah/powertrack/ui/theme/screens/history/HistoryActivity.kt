@@ -39,7 +39,8 @@ fun HistoryScreen(onBack: () -> Unit) {
     val meterNumber = prefs.getString("meter_number", "14253647589") ?: "14253647589"
 
     LaunchedEffect(Unit) {
-        viewModel.fetchHistory(meterNumber)
+        viewModel.loadFromPrefs(context)
+        viewModel.fetchHistory(meterNumber, context)
     }
 
     val transactions by viewModel.transactions

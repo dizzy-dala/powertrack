@@ -28,12 +28,25 @@ class DashboardViewModel : ViewModel() {
     private val _userName = mutableStateOf("User")
     val userName: State<String> = _userName
 
-    fun refreshFromBackend(meterNumber: String) {
+    fun loadFromPrefs(context: Context) {
+        val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
+        _units.floatValue = prefs.getFloat("remaining_units", 0f)
+        _dailyUsage.floatValue = prefs.getFloat("daily_usage", 1.2f)
+        _userName.value = prefs.getString("user_name", "User") ?: "User"
+    }
+
+    fun refreshFromBackend(meterNumber: String, context: Context? = null) {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.instance.getBalance(meterNumber)
                 if (response.isSuccessful && response.body() != null) {
-                    _units.floatValue = response.body()!!.balance
+                    val newBalance = response.body()!!.balance
+                    _units.floatValue = newBalance
+                    
+                    // Persist to SharedPreferences if context is provided
+                    context?.getSharedPreferences("powertrack", Context.MODE_PRIVATE)?.edit {
+                        putFloat("remaining_units", newBalance)
+                    }
                 }
             } catch (e: Exception) {
                 // Silently fail or log

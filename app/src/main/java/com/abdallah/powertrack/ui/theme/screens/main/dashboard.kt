@@ -33,11 +33,12 @@ fun MainScreen(navController: NavController) {
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
+        dashboardViewModel.loadFromPrefs(context)
         dashboardViewModel.startListening(context)
         val prefs = context.getSharedPreferences("powertrack", 0)
         val meterNumber = prefs.getString("meter_number", "") ?: ""
         if (meterNumber.isNotBlank()) {
-            dashboardViewModel.refreshFromBackend(meterNumber)
+            dashboardViewModel.refreshFromBackend(meterNumber, context)
         }
     }
 

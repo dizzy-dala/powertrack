@@ -63,12 +63,13 @@ def buy_token(request):
         api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
         headers = {"Authorization": "Bearer %s" % access_token}
 
-        # Format phone number to 254...
+        # Format phone number to 254... for M-Pesa Daraja API
         formatted_phone = phone_number
         if formatted_phone.startswith('0'):
             formatted_phone = '254' + formatted_phone[1:]
         elif formatted_phone.startswith('+'):
             formatted_phone = formatted_phone[1:]
+        # Numbers starting with 254 already are handled by default
 
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         data_to_encode = LipanaMpesaPpassword.Business_short_code + LipanaMpesaPpassword.passkey + timestamp

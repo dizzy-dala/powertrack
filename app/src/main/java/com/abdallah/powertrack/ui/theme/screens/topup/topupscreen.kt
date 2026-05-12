@@ -62,6 +62,11 @@ fun TopUpScreen(navController: NavController) {
     val isProcessing by paymentViewModel.isProcessing
     val scope = rememberCoroutineScope()
 
+    val isPhoneValid = (phoneNumber.startsWith("07") && phoneNumber.length == 10) ||
+            (phoneNumber.startsWith("01") && phoneNumber.length == 10) ||
+            (phoneNumber.startsWith("2547") && phoneNumber.length == 12) ||
+            (phoneNumber.startsWith("2541") && phoneNumber.length == 12)
+
     val quickAmounts = listOf("200", "500", "1000", "2000", "5000")
 
     Scaffold(
@@ -229,13 +234,19 @@ fun TopUpScreen(navController: NavController) {
                     
                     OutlinedTextField(
                         value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
+                        onValueChange = { if (it.all { char -> char.isDigit() }) phoneNumber = it },
                         label = { Text("Phone Number") },
                         placeholder = { Text("07xx xxx xxx") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        isError = phoneNumber.isNotEmpty() && !isPhoneValid,
+                        supportingText = {
+                            if (phoneNumber.isNotEmpty() && !isPhoneValid) {
+                                Text("Use 07..., 01..., 2547... or 2541...")
+                            }
+                        },
                         singleLine = true
                     )
                 }
@@ -310,7 +321,7 @@ fun TopUpScreen(navController: NavController) {
             // Action Button
             val isDataValid = amount.isNotBlank() && 
                     meterNumber.isNotBlank() &&
-                    phoneNumber.length >= 10
+                    isPhoneValid
 
             Button(
                 onClick = { showConfirmDialog = true },
@@ -372,10 +383,17 @@ fun TopUpScreen(navController: NavController) {
                         showConfirmDialog = false
                         val amountFloat = amount.toFloatOrNull() ?: 0f
                         
+                        // Format phone to 254 format for Daraja
+                        val formattedPhone = if (phoneNumber.startsWith("0")) {
+                            "254" + phoneNumber.substring(1)
+                        } else {
+                            phoneNumber
+                        }
+                        
                         paymentViewModel.processTopUp(
                             amountFloat, 
                             "M-Pesa", 
-                            phoneNumber,
+                            formattedPhone,
                             meterNumber,
                             context, 
                             onSuccess = { token, units ->
@@ -388,8 +406,8 @@ fun TopUpScreen(navController: NavController) {
                                 prefs.edit().putString("meter_number", meterNumber).apply()
                                 
                                 // Refresh ViewModels
-                                dashboardViewModel.refreshFromBackend(meterNumber)
-                                historyViewModel.fetchHistory(meterNumber)
+                                dashboardViewModel.refreshFromBackend(meterNumber, context)
+                                historyViewModel.fetchHistory(meterNumber, context)
                             },
                             onError = { message ->
                                 scope.launch {
