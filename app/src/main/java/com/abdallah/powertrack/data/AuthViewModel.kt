@@ -95,4 +95,39 @@ class AuthViewModel : ViewModel() {
                 }
             }
     }
+
+    fun updateProfile(name: String, email: String, dailyUsage: Float, transactionPin: String, context: Context, onUpdateSuccess: () -> Unit) {
+        if (name.isBlank() || email.isBlank() || transactionPin.isBlank()) {
+            _errorMessage.value = "Please fill in all fields"
+            return
+        }
+
+        _isLoading.value = true
+        _errorMessage.value = null
+
+        val userId = auth.currentUser?.uid ?: ""
+        val updates = mapOf(
+            "name" to name,
+            "email" to email,
+            "dailyUsage" to dailyUsage,
+            "transactionPin" to transactionPin
+        )
+
+        db.collection("users").document(userId).update(updates)
+            .addOnSuccessListener {
+                val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
+                prefs.edit {
+                    putString("user_name", name)
+                    putString("user_email", email)
+                    putFloat("daily_usage", dailyUsage)
+                    putString("transaction_pin", transactionPin)
+                }
+                _isLoading.value = false
+                onUpdateSuccess()
+            }
+            .addOnFailureListener { e ->
+                _isLoading.value = false
+                _errorMessage.value = e.message ?: "Update failed"
+            }
+    }
 }

@@ -4,6 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import json
 import base64
+import random
 from datetime import datetime
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
@@ -22,12 +23,26 @@ def get_access_token():
             auth=HTTPBasicAuth(MpesaC2bCredential.consumer_key, MpesaC2bCredential.consumer_secret),
             timeout=10
         )
+
+        # Printing for debugging
+        print(f"DEBUG: Request URL: {MpesaC2bCredential.api_URL}")
+        print(f"DEBUG: Status Code: {res.status_code}")
+        print(f"DEBUG: Response Text: {res.text}")
+
         res.raise_for_status()
         mpesa_access_token = res.json()
         return mpesa_access_token.get("access_token")
+    except requests.exceptions.HTTPError as errh:
+        print(f"Http Error: {errh}")
+    except requests.exceptions.ConnectionError as errc:
+        print(f"Error Connecting: {errc}")
+    except requests.exceptions.Timeout as errt:
+        print(f"Timeout Error: {errt}")
+    except requests.exceptions.RequestException as err:
+        print(f"OOps: Something Else: {err}")
     except Exception as e:
         print(f"Error fetching access token: {e}")
-        return None
+    return None
 
 @api_view(['POST'])
 def buy_token(request):
@@ -68,7 +83,7 @@ def buy_token(request):
             "PartyA": formatted_phone,
             "PartyB": LipanaMpesaPpassword.Business_short_code,
             "PhoneNumber": formatted_phone,
-            "CallBackURL": "https://your-domain.com/payments/callback/", # You need a public URL for this to work
+            "CallBackURL": "https://opposite-violet-shy.ngrok-free.dev/callback/", # You need a public URL for this to work
             "AccountReference": meter_number,
             "TransactionDesc": "Token Purchase"
         }
@@ -103,35 +118,87 @@ def buy_token(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+def check_status(request, checkout_request_id):
+    try:
+        transaction = Transaction.objects.get(checkout_request_id=checkout_request_id)
+        return Response({
+            "status": transaction.status.lower(), # 'pending', 'success', or 'failed'
+            "message": transaction.result_desc or "Processing...",
+            "checkout_request_id": transaction.checkout_request_id,
+            "amount": transaction.amount,
+            "token": transaction.token,
+            "units": transaction.units
+        }, status=status.HTTP_200_OK)
+    except Transaction.DoesNotExist:
+        return Response({"status": "error", "message": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND)
+
 @csrf_exempt
 def mpesa_callback(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        stk_callback = data.get('Body', {}).get('stkCallback', {})
-        result_code = stk_callback.get('ResultCode')
-        checkout_request_id = stk_callback.get('CheckoutRequestID')
-
         try:
-            transaction = Transaction.objects.get(checkout_request_id=checkout_request_id)
-            if result_code == 0:
-                # Success
-                transaction.status = 'Success'
-                # Extract receipt number from CallbackMetadata
-                items = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-                for item in items:
-                    if item.get('Name') == 'MpesaReceiptNumber':
-                        transaction.mpesa_receipt_number = item.get('Value')
-                        break
-            else:
-                # Failed or Cancelled
-                transaction.status = 'Failed'
+            data = json.loads(request.body)
+            stk_callback = data.get('Body', {}).get('stkCallback', {})
+            result_code = stk_callback.get('ResultCode')
+            result_desc = stk_callback.get('ResultDesc')
+            checkout_request_id = stk_callback.get('CheckoutRequestID')
 
-            transaction.save()
-            return JsonResponse({"ResultCode": 0, "ResultDesc": "Accepted"})
-        except Transaction.DoesNotExist:
-            return JsonResponse({"ResultCode": 1, "ResultDesc": "Transaction not found"})
+            try:
+                transaction = Transaction.objects.get(checkout_request_id=checkout_request_id)
+                transaction.result_code = result_code
+                transaction.result_desc = result_desc
+
+                if result_code == 0:
+                    # Success
+                    transaction.status = 'Success'
+
+                    # Generate fake token (e.g., 20 digits: 4-4-4-4-4)
+                    transaction.token = "-".join(["".join([str(random.randint(0, 9)) for _ in range(4)]) for _ in range(5)])
+
+                    # Rough calculation of units (KES 25 per unit for simulation)
+                    transaction.units = float(transaction.amount) / 25.0
+
+                    # Extract receipt number and other metadata if needed
+                    items = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+                    for item in items:
+                        if item.get('Name') == 'MpesaReceiptNumber':
+                            transaction.mpesa_receipt_number = item.get('Value')
+                        # You can also capture 'Amount' here if you want to verify it
+                else:
+                    # Failed or Cancelled (e.g., 1032 for Request cancelled by user)
+                    transaction.status = 'Failed'
+
+                transaction.save()
+                return JsonResponse({"ResultCode": 0, "ResultDesc": "Accepted"})
+            except Transaction.DoesNotExist:
+                # If transaction is not found, we still return success to Safaricom
+                # to acknowledge receipt of the callback
+                return JsonResponse({"ResultCode": 0, "ResultDesc": "Transaction not found but callback received"})
+        except Exception as e:
+            return JsonResponse({"ResultCode": 1, "ResultDesc": str(e)})
 
     return HttpResponse("Invalid request")
+
+@api_view(['GET'])
+def get_history(request, meter_number):
+    transactions = Transaction.objects.filter(meter_number=meter_number).order_by('-created_at')
+    data = []
+    for tx in transactions:
+        data.append({
+            "id": tx.id,
+            "amount": float(tx.amount),
+            "units": float(tx.units) if tx.units else 0.0,
+            "token": tx.token or "",
+            "status": tx.status,
+            "date": tx.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return Response(data)
+
+@api_view(['GET'])
+def get_balance(request, meter_number):
+    from django.db.models import Sum
+    total_units = Transaction.objects.filter(meter_number=meter_number, status='Success').aggregate(Sum('units'))['units__sum'] or 0.0
+    return Response({"meter_number": meter_number, "balance": float(total_units)})
 
 # Kept for backward compatibility or other uses
 def home(request):

@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,15 +23,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.abdallah.powertrack.data.HistoryViewModel
+import com.abdallah.powertrack.models.TransactionHistoryItem
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val viewModel: HistoryViewModel = viewModel()
+    
     val prefs = context.getSharedPreferences("powertrack", 0)
+    // We need a meter number to fetch history. In a real app, this is saved in prefs after setup.
+    val meterNumber = prefs.getString("meter_number", "14253647589") ?: "14253647589"
 
-    val historyString = prefs.getString("history", "") ?: ""
-    val historyList = historyString.split("\n").filter { it.isNotBlank() }
+    LaunchedEffect(Unit) {
+        viewModel.fetchHistory(meterNumber)
+    }
+
+    val transactions by viewModel.transactions
+    val isLoading by viewModel.isLoading
+    val errorMessage by viewModel.error
 
     Scaffold(
         topBar = {
@@ -47,9 +62,16 @@ fun HistoryScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
-        if (historyList.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else if (errorMessage != null) {
+                Text(errorMessage ?: "Error", color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
+            } else if (transactions.isEmpty()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Icon(
                         Icons.Default.History, 
                         contentDescription = null, 
@@ -59,17 +81,15 @@ fun HistoryScreen(onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("No transactions yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(historyList) { entry ->
-                    HistoryItem(entry)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(transactions) { entry ->
+                        HistoryItem(entry)
+                    }
                 }
             }
         }
@@ -77,8 +97,8 @@ fun HistoryScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun HistoryItem(entry: String) {
-    val isPayment = entry.contains("Purchased", ignoreCase = true) || entry.contains("added", ignoreCase = true)
+fun HistoryItem(item: TransactionHistoryItem) {
+    val isSuccess = item.status.lowercase() == "success"
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -96,29 +116,36 @@ fun HistoryItem(entry: String) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(if (isPayment) Color(0xFFE1F5FE) else Color(0xFFFFF3E0)),
+                    .background(if (isSuccess) Color(0xFFE1F5FE) else Color(0xFFFFF3E0)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    if (isPayment) Icons.Default.Payments else Icons.Default.ElectricBolt,
+                    if (isSuccess) Icons.Default.Payments else Icons.Default.ElectricBolt,
                     contentDescription = null,
-                    tint = if (isPayment) Color(0xFF0288D1) else Color(0xFFF57C00),
+                    tint = if (isSuccess) Color(0xFF0288D1) else Color(0xFFF57C00),
                     modifier = Modifier.size(24.dp)
                 )
             }
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column {
-                // Assuming format: "Date: Message"
-                val parts = entry.split(": ", limit = 2)
-                if (parts.size == 2) {
-                    Text(parts[0], fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
-                    Text(parts[1], fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                } else {
-                    Text(entry, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.date, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                Text(
+                    if (isSuccess) "Purchased ${item.units} kWh" else "Payment ${item.status}", 
+                    fontSize = 15.sp, 
+                    fontWeight = FontWeight.Medium
+                )
+                if (item.token.isNotBlank()) {
+                    Text("Token: ${item.token}", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
+            
+            Text(
+                "KES ${item.amount}", 
+                fontWeight = FontWeight.Bold,
+                color = if (isSuccess) Color(0xFF2E7D32) else Color.DarkGray
+            )
         }
     }
 }

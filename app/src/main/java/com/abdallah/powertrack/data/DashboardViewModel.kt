@@ -5,11 +5,14 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.lifecycle.viewModelScope
 import androidx.core.content.edit
 import com.abdallah.powertrack.model.User
+import com.abdallah.powertrack.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.launch
 
 class DashboardViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
@@ -24,6 +27,19 @@ class DashboardViewModel : ViewModel() {
 
     private val _userName = mutableStateOf("User")
     val userName: State<String> = _userName
+
+    fun refreshFromBackend(meterNumber: String) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.instance.getBalance(meterNumber)
+                if (response.isSuccessful && response.body() != null) {
+                    _units.floatValue = response.body()!!.balance
+                }
+            } catch (e: Exception) {
+                // Silently fail or log
+            }
+        }
+    }
 
     fun startListening(context: Context) {
         val userId = auth.currentUser?.uid ?: return

@@ -25,11 +25,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.abdallah.powertrack.data.DashboardViewModel
+import com.abdallah.powertrack.data.HistoryViewModel
 import com.abdallah.powertrack.data.PaymentViewModel
 import kotlinx.coroutines.launch
 
@@ -37,14 +39,25 @@ import kotlinx.coroutines.launch
 @Composable
 fun TopUpScreen(navController: NavController) {
     val paymentViewModel: PaymentViewModel = viewModel()
+    val dashboardViewModel: DashboardViewModel = viewModel()
+    val historyViewModel: HistoryViewModel = viewModel()
     val context = LocalContext.current
+
+    // Start listening for balance updates from Firebase
+    LaunchedEffect(Unit) {
+        dashboardViewModel.startListening(context)
+    }
 
     var amount by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
-    var cardNumber by remember { mutableStateOf("") }
-    var pin by remember { mutableStateOf("") }
+    var meterNumber by remember { mutableStateOf("") }
     var selectedMethod by remember { mutableStateOf("M-Pesa") }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var generatedToken by remember { mutableStateOf("") }
+    var unitsPurchased by remember { mutableFloatStateOf(0f) }
+    
+    val currentUnits by dashboardViewModel.units
     val snackbarHostState = remember { SnackbarHostState() }
     val isProcessing by paymentViewModel.isProcessing
     val scope = rememberCoroutineScope()
@@ -76,6 +89,36 @@ fun TopUpScreen(navController: NavController) {
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Balance Card (Shows live updates)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Current Balance", style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            "%.2f kWh".format(currentUnits),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Icon(
+                        Icons.Default.Bolt,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Amount Header Card
@@ -152,9 +195,57 @@ fun TopUpScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Payment Methods Title
+            // Meter and Phone Details
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Delivery Details",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = meterNumber,
+                        onValueChange = { meterNumber = it },
+                        label = { Text("Meter Number") },
+                        placeholder = { Text("e.g. 14253647589") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        leadingIcon = { Icon(Icons.Default.Bolt, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedTextField(
+                        value = phoneNumber,
+                        onValueChange = { phoneNumber = it },
+                        label = { Text("Phone Number") },
+                        placeholder = { Text("07xx xxx xxx") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Payment Method Selection (M-Pesa Only)
             Text(
-                "Select Payment Method",
+                "Payment Method",
                 modifier = Modifier.align(Alignment.Start),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -162,127 +253,64 @@ fun TopUpScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val methods = listOf(
-                PaymentMethod("M-Pesa", Icons.Default.Smartphone, Color(0xFF4CAF50)),
-                PaymentMethod("Airtel Money", Icons.Default.Smartphone, Color(0xFFFF0000)),
-                PaymentMethod("Visa Card", Icons.Default.CreditCard, Color(0xFF1A1F71)),
-                PaymentMethod("MasterCard", Icons.Default.CreditCard, Color(0xFFEB001B)),
-                PaymentMethod("Bank Transfer", Icons.Default.AccountBalance, Color(0xFF607D8B))
-            )
-
-            methods.forEach { method ->
-                val isSelected = selectedMethod == method.name
-                val border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-                
-                Surface(
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                shadowElevation = 2.dp
+            ) {
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .clickable { selectedMethod = method.name },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
-                    border = border,
-                    shadowElevation = if (isSelected) 2.dp else 1.dp
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF4CAF50).copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(method.color.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                method.icon, 
-                                contentDescription = null, 
-                                tint = method.color,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        
-                        Text(
-                            method.name, 
-                            modifier = Modifier.padding(start = 16.dp),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                        
-                        Spacer(modifier = Modifier.weight(1f))
-                        
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = { selectedMethod = method.name }
+                        Icon(
+                            Icons.Default.Smartphone,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(24.dp)
                         )
                     }
+
+                    Column(modifier = Modifier.padding(start = 16.dp)) {
+                        Text(
+                            "M-Pesa Express",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Instant token delivery",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    RadioButton(
+                        selected = true,
+                        onClick = { /* Always M-Pesa */ }
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Dynamic Inputs based on selected method
-            AnimatedVisibility(
-                visible = selectedMethod in listOf("M-Pesa", "Airtel Money"),
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = { phoneNumber = it },
-                    label = { Text("Mobile Number") },
-                    placeholder = { Text("07xx xxx xxx") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
-                )
-            }
-
-            AnimatedVisibility(
-                visible = selectedMethod in listOf("Visa Card", "MasterCard"),
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                OutlinedTextField(
-                    value = cardNumber,
-                    onValueChange = { cardNumber = it },
-                    label = { Text("Card Number") },
-                    placeholder = { Text("xxxx xxxx xxxx xxxx") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            }
-
-            // PIN Field
-            OutlinedTextField(
-                value = pin,
-                onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) pin = it },
-                label = { Text("Transaction PIN") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                supportingText = { Text("Secure 4-digit PIN") },
-                singleLine = true
-            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
             // Action Button
             val isDataValid = amount.isNotBlank() && 
-                    pin.length == 4 && 
-                    ((selectedMethod in listOf("M-Pesa", "Airtel Money") && phoneNumber.length >= 10) || 
-                     (selectedMethod in listOf("Visa Card", "MasterCard") && cardNumber.length >= 13) ||
-                     (selectedMethod == "Bank Transfer"))
+                    meterNumber.isNotBlank() &&
+                    phoneNumber.length >= 10
 
             Button(
                 onClick = { showConfirmDialog = true },
@@ -320,12 +348,6 @@ fun TopUpScreen(navController: NavController) {
     }
 
     if (showConfirmDialog) {
-        val target = when (selectedMethod) {
-            "M-Pesa", "Airtel Money" -> phoneNumber
-            "Visa Card", "MasterCard" -> "Card ending in ${cardNumber.takeLast(4)}"
-            else -> "Bank account"
-        }
-        
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             icon = { Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
@@ -339,7 +361,9 @@ fun TopUpScreen(navController: NavController) {
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Text("via $selectedMethod ($target)", textAlign = TextAlign.Center)
+                    Text("to Meter: $meterNumber", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("An M-Pesa PIN prompt will appear on your phone ($phoneNumber).", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
@@ -347,17 +371,29 @@ fun TopUpScreen(navController: NavController) {
                     onClick = {
                         showConfirmDialog = false
                         val amountFloat = amount.toFloatOrNull() ?: 0f
+                        
                         paymentViewModel.processTopUp(
                             amountFloat, 
-                            selectedMethod, 
-                            pin, 
+                            "M-Pesa", 
+                            phoneNumber,
+                            meterNumber,
                             context, 
-                            onSuccess = {
-                                navController.popBackStack()
+                            onSuccess = { token, units ->
+                                generatedToken = token
+                                unitsPurchased = units
+                                showSuccessDialog = true
+                                
+                                // Save meter number for other screens
+                                val prefs = context.getSharedPreferences("powertrack", 0)
+                                prefs.edit().putString("meter_number", meterNumber).apply()
+                                
+                                // Refresh ViewModels
+                                dashboardViewModel.refreshFromBackend(meterNumber)
+                                historyViewModel.fetchHistory(meterNumber)
                             },
                             onError = { message ->
                                 scope.launch {
-                                    snackbarHostState.showSnackbar(message)
+                                    snackbarHostState.showSnackbar("Payment Failed: $message")
                                 }
                             }
                         )
@@ -365,7 +401,7 @@ fun TopUpScreen(navController: NavController) {
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("AUTHORIZE")
+                    Text("PAY NOW")
                 }
             },
             dismissButton = {
@@ -374,6 +410,55 @@ fun TopUpScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("CANCEL")
+                }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
+
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showSuccessDialog = false
+                navController.popBackStack()
+            },
+            icon = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp)) },
+            title = { Text("Token Generated Successfully", textAlign = TextAlign.Center) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text("Your Token Number:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            generatedToken,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row {
+                        Text("Units: ", fontWeight = FontWeight.Bold)
+                        Text("%.2f kWh".format(unitsPurchased))
+                    }
+                    Text("Amount: KES $amount", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("DONE")
                 }
             },
             shape = RoundedCornerShape(28.dp)

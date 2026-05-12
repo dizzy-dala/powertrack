@@ -11,6 +11,7 @@ import com.abdallah.powertrack.ui.theme.screens.main.MainScreen
 import com.abdallah.powertrack.ui.theme.screens.token.AddTokenScreen
 import com.abdallah.powertrack.ui.theme.screens.usage.UsageScreen
 import com.abdallah.powertrack.ui.theme.screens.settings.SettingsScreen
+import com.abdallah.powertrack.ui.theme.screens.settings.ProfileScreen
 import com.abdallah.powertrack.ui.theme.screens.setup.SetupScreen
 import com.abdallah.powertrack.ui.theme.screens.topup.TopUpScreen
 import com.abdallah.powertrack.ui.theme.screens.welcome.WelcomeScreen
@@ -102,6 +103,9 @@ fun AppNavHost(
             }
             composable(ROUTE_TOPUP) {
                 TopUpScreen(navController)
+            }
+            composable(ROUTE_PROFILE) {
+                ProfileScreen(navController)
             }
         }
     }

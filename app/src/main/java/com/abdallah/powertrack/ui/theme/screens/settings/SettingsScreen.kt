@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import androidx.navigation.NavController
+import com.abdallah.powertrack.navigation.ROUTE_PROFILE
 import com.abdallah.powertrack.navigation.ROUTE_WELCOME
 import com.google.firebase.auth.FirebaseAuth
 
@@ -91,7 +92,9 @@ fun SettingsScreen(navController: NavController, onBack: () -> Unit) {
 
             // Settings Sections
             SettingsCategory(title = "Account")
-            SettingsItem(icon = Icons.Default.Person, title = "Profile Details", subtitle = "View and update your personal info") {}
+            SettingsItem(icon = Icons.Default.Person, title = "Profile Details", subtitle = "View and update your personal info") {
+                navController.navigate(ROUTE_PROFILE)
+            }
             SettingsItem(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Manage low unit alerts") {}
             
             SettingsCategory(title = "Meter Configuration")
