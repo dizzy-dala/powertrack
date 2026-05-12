@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.gpKotlin)
     alias(libs.plugins.gpCompose)
     alias(libs.plugins.gpGoogle)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -60,6 +61,11 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.core.splashscreen)
     
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)

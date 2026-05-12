@@ -1,20 +1,27 @@
 package com.abdallah.powertrack.data
 
+import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.edit
+import com.abdallah.powertrack.database.entities.UserBalance
 import com.abdallah.powertrack.model.User
 import com.abdallah.powertrack.network.RetrofitClient
+import com.abdallah.powertrack.repository.PowerRepository
+import com.abdallah.powertrack.utils.NetworkMonitor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class DashboardViewModel : ViewModel() {
+class DashboardViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = PowerRepository(application)
+    private val networkMonitor = NetworkMonitor(application)
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private var listener: ListenerRegistration? = null
@@ -28,6 +35,32 @@ class DashboardViewModel : ViewModel() {
     private val _userName = mutableStateOf("User")
     val userName: State<String> = _userName
 
+    init {
+        // Observe local database
+        viewModelScope.launch {
+            repository.getUserBalance().collectLatest { balance ->
+                balance?.let {
+                    _units.floatValue = it.units
+                    _dailyUsage.floatValue = it.dailyUsage
+                    _userName.value = it.userName
+                }
+            }
+        }
+
+        // Auto-refresh when internet returns
+        viewModelScope.launch {
+            networkMonitor.isConnected.collectLatest { connected ->
+                if (connected) {
+                    val prefs = application.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
+                    val meterNumber = prefs.getString("meter_number", "") ?: ""
+                    if (meterNumber.isNotBlank()) {
+                        repository.refreshBalance(meterNumber)
+                    }
+                }
+            }
+        }
+    }
+
     fun loadFromPrefs(context: Context) {
         val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
         _units.floatValue = prefs.getFloat("remaining_units", 0f)
@@ -37,20 +70,7 @@ class DashboardViewModel : ViewModel() {
 
     fun refreshFromBackend(meterNumber: String, context: Context? = null) {
         viewModelScope.launch {
-            try {
-                val response = RetrofitClient.instance.getBalance(meterNumber)
-                if (response.isSuccessful && response.body() != null) {
-                    val newBalance = response.body()!!.balance
-                    _units.floatValue = newBalance
-                    
-                    // Persist to SharedPreferences if context is provided
-                    context?.getSharedPreferences("powertrack", Context.MODE_PRIVATE)?.edit {
-                        putFloat("remaining_units", newBalance)
-                    }
-                }
-            } catch (e: Exception) {
-                // Silently fail or log
-            }
+            repository.refreshBalance(meterNumber)
         }
     }
 
@@ -71,7 +91,12 @@ class DashboardViewModel : ViewModel() {
                         _dailyUsage.floatValue = user.dailyUsage
                         _userName.value = user.name
                         
-                        // Sync to local prefs for offline access
+                        // Sync to local Room for offline access
+                        viewModelScope.launch {
+                            repository.insertLocalBalance(user.remainingUnits, user.dailyUsage, user.name)
+                        }
+
+                        // Also keep SharedPreferences sync if needed by other parts of the app
                         val prefs = context.getSharedPreferences("powertrack", Context.MODE_PRIVATE)
                         prefs.edit {
                             putFloat("remaining_units", user.remainingUnits)
