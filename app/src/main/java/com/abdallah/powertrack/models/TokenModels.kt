@@ -3,10 +3,9 @@ package com.abdallah.powertrack.models
 import com.google.gson.annotations.SerializedName
 
 data class BuyTokenRequest(
-    @SerializedName("amount") val amount: Float,
+    @SerializedName("amount") val amount: Int,
     @SerializedName("phone_number") val phoneNumber: String,
-    @SerializedName("meter_number") val meterNumber: String,
-    @SerializedName("payment_method") val paymentMethod: String
+    @SerializedName("meter_number") val meterNumber: String
 )
 
 data class BuyTokenResponse(

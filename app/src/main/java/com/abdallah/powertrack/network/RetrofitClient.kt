@@ -6,8 +6,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    // 10.0.2.2 is the IP address to access localhost from the Android emulator
-    private const val BASE_URL = "https://powertrack-w2fk.onrender.com"
+    // Use your ngrok URL for local development to allow M-Pesa callbacks
+    private const val BASE_URL = "https://opposite-violet-shy.ngrok-free.dev/"
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -15,6 +15,13 @@ object RetrofitClient {
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(logging)
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .build()
+            chain.proceed(request)
+        }
         .build()
 
     val instance: ApiService by lazy {

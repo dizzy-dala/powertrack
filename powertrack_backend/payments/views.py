@@ -85,7 +85,7 @@ def buy_token(request):
             "PartyA": formatted_phone,
             "PartyB": LipanaMpesaPpassword.Business_short_code,
             "PhoneNumber": formatted_phone,
-            "CallBackURL": os.environ.get('MPESA_CALLBACK_URL', "https://powertrack-w2fk.onrender.com/callback/"),
+            "CallBackURL": os.environ.get('MPESA_CALLBACK_URL', "https://opposite-violet-shy.ngrok-free.dev/callback/"),
             "AccountReference": meter_number,
             "TransactionDesc": "Token Purchase"
         }

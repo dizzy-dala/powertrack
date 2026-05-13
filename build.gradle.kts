@@ -4,4 +4,5 @@ plugins {
     alias(libs.plugins.gpKotlin) apply false
     alias(libs.plugins.gpCompose) apply false
     alias(libs.plugins.gpGoogle) apply false
+    alias(libs.plugins.ksp) apply false
 }

@@ -1,6 +1,7 @@
 package com.abdallah.powertrack.data
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -15,6 +16,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class PaymentViewModel : ViewModel() {
+    private val TAG = "PaymentViewModel"
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
@@ -36,11 +38,19 @@ class PaymentViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val request = BuyTokenRequest(amount, phoneNumber, meterNumber, method)
+                // Formatting amount as Int as requested by the user
+                val request = BuyTokenRequest(
+                    amount = amount.toInt(),
+                    phoneNumber = phoneNumber,
+                    meterNumber = meterNumber
+                )
                 val response = RetrofitClient.instance.buyToken(request)
 
+                Log.d(TAG, "Response Code: ${response.code()}")
+                
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
+                    Log.d(TAG, "Response Body: $body")
                     
                     if (body.status == "success") {
                         val checkoutId = body.checkoutRequestId
@@ -60,10 +70,13 @@ class PaymentViewModel : ViewModel() {
                         onError(body.message)
                     }
                 } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Error Body: $errorBody")
                     _isProcessing.value = false
                     onError("Server Error: ${response.message()}")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Network Error", e)
                 _isProcessing.value = false
                 onError("Network Error: ${e.localizedMessage}")
             }
@@ -87,8 +100,11 @@ class PaymentViewModel : ViewModel() {
                 
                 try {
                     val response = RetrofitClient.instance.checkStatus(checkoutRequestId)
+                    Log.d(TAG, "Poll Status Response: ${response.code()}")
+                    
                     if (response.isSuccessful && response.body() != null) {
                         val body = response.body()!!
+                        Log.d(TAG, "Poll Status Body: $body")
                         when (body.status.lowercase()) {
                             "success" -> {
                                 val token = body.token ?: generateFakeToken()
