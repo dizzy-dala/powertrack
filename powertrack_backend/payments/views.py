@@ -84,7 +84,7 @@ def buy_token(request):
             "PartyA": formatted_phone,
             "PartyB": LipanaMpesaPpassword.Business_short_code,
             "PhoneNumber": formatted_phone,
-            "CallBackURL": "https://opposite-violet-shy.ngrok-free.dev/callback/", # You need a public URL for this to work
+            "CallBackURL": "https://powertrack-w2fk.onrender.com/callback/", # You need a public URL for this to work
             "AccountReference": meter_number,
             "TransactionDesc": "Token Purchase"
         }
