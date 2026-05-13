@@ -5,6 +5,7 @@ from requests.auth import HTTPBasicAuth
 import json
 import base64
 import random
+import os
 from datetime import datetime
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
@@ -84,7 +85,7 @@ def buy_token(request):
             "PartyA": formatted_phone,
             "PartyB": LipanaMpesaPpassword.Business_short_code,
             "PhoneNumber": formatted_phone,
-            "CallBackURL": "https://powertrack-w2fk.onrender.com/callback/", # You need a public URL for this to work
+            "CallBackURL": os.environ.get('MPESA_CALLBACK_URL', "https://powertrack-w2fk.onrender.com/callback/"),
             "AccountReference": meter_number,
             "TransactionDesc": "Token Purchase"
         }
